@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#14251f">
+<title>Porrinha Digital</title>
+<style>
+:root{--bg:#101b18;--panel:#1b2b25;--panel2:#24382f;--gold:#f2c46d;--cream:#fff7e8;--muted:#b8c7bd;--green:#8fd3a7;--red:#ef8f83}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#263c31 0,#101b18 55%);color:var(--cream);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{width:min(920px,100%);margin:auto;padding:22px 16px 48px}
+header{text-align:center;margin:8px 0 22px}header .mark{font-size:36px}h1{font-size:clamp(28px,6vw,42px);margin:2px 0;color:var(--gold);letter-spacing:1px}header p{margin:0;color:var(--muted)}
+.panel{background:rgba(27,43,37,.96);border:1px solid #3b5548;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 12px 30px #0003}
+h2{margin:0 0 14px;font-size:21px}label{display:block;color:var(--muted);font-size:14px;margin:10px 0 5px}
+input,select{width:100%;background:#102019;color:var(--cream);border:1px solid #496354;border-radius:12px;padding:13px;font:inherit;outline:none}
+button{border:0;border-radius:13px;padding:13px 16px;font:700 16px inherit;cursor:pointer}
+.primary{background:var(--gold);color:#17231c;width:100%;margin-top:14px}.secondary{background:var(--panel2);color:var(--cream);border:1px solid #496354}
+button:disabled{opacity:.4;cursor:not-allowed}.muted{color:var(--muted)}.small{font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.player{background:var(--panel2);border:1px solid #496354;border-radius:15px;padding:13px}
+.player strong{display:block;margin-bottom:5px}.sticks{font-size:24px;letter-spacing:3px;color:var(--gold);min-height:34px}
+.hidden{display:none!important}.notice{background:#172a21;border-left:4px solid var(--green);padding:12px;border-radius:8px;color:var(--muted);margin-top:12px}
+.hand-wrap{text-align:center;padding:10px 0}.hand{width:150px;height:120px;display:block;margin:0 auto 8px}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.choice{background:#263b30;color:var(--cream);border:2px solid #496354;min-height:116px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+.choice.selected{border-color:var(--gold);background:#3b3928;box-shadow:0 0 0 2px #f2c46d33}
+.match{display:inline-block;width:6px;height:38px;background:#e8d3a7;border-radius:4px;position:relative;transform:rotate(0deg);margin:0 3px}
+.match:before{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:#d65b45;top:-5px;left:-1.5px}
+.matches{display:flex;justify-content:center;align-items:center;gap:2px;min-height:42px}
+.actionrow{display:flex;gap:10px;margin-top:14px}.actionrow button{flex:1}
+.result{font-size:18px;color:var(--gold);font-weight:700}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.panel{padding:16px}.choices{gap:7px}.choice{font-size:14px;padding:8px 3px}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="mark">✊</div><h1>PORRINHA DIGITAL</h1><p>A brincadeira dos palitinhos, agora no celular</p></header>
+
+<section class="panel" id="setup">
+<h2>Nova partida</h2>
+<label for="qty">Quantidade de jogadores</label>
+<select id="qty"><option value="2">2 jogadores</option><option value="3">3 jogadores</option><option value="4">4 jogadores</option></select>
+<div id="nameFields"></div>
+<button class="primary" id="start">Criar partida de teste</button>
+<p class="notice small">Esta edição é um protótipo de teste no mesmo aparelho. A versão com cada pessoa no próprio celular será conectada à sala online na próxima etapa.</p>
+</section>
+
+<section class="panel hidden" id="game">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+<h2 id="roundTitle">Rodada 1</h2><span class="muted small" id="phaseLabel">Escolha secreta</span>
+</div>
+<div class="grid" id="roster"></div>
+<div id="playArea"></div>
+<div id="feedback"></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let players=[],round=1,phase="pick",turn=0,picks=[],guesses=[],selected=0;
+function drawNameFields(){let q=+$("qty").value;$("nameFields").innerHTML="";for(let i=0;i<q;i++){let l=document.createElement("label");l.textContent="Nome do jogador "+(i+1);let x=document.createElement("input");x.id="pname"+i;x.value=["Eslei","Rosângela","Jennifer","Convidado"][i];x.maxLength=24;$("nameFields").append(l,x)}}
+$("qty").addEventListener("change",drawNameFields);drawNameFields();
+$("start").onclick=()=>{players=Array.from({length:+$("qty").value},(_,i)=>({name:$("pname"+i).value.trim()||"Jogador "+(i+1),sticks:3}));$("setup").classList.add("hidden");$("game").classList.remove("hidden");round=1;beginRound()};
+function beginRound(){phase="pick";turn=0;picks=[];guesses=[];players.forEach(p=>p.pick=null);render()}
+function roster(){return players.map(p=>`<div class="player"><strong>${esc(p.name)}</strong><div class="sticks">${"│ ".repeat(p.sticks)||"—"}</div><span class="muted small">${p.sticks} palito(s) restantes</span></div>`).join("")}
+function render(){$("roundTitle").textContent="Rodada "+round;$("phaseLabel").textContent=phase==="pick"?"Escolha dos palitos":"Palpite do total";$("roster").innerHTML=roster();$("feedback").innerHTML="";if(phase==="pick")renderPick();else if(phase==="guess")renderGuess()}
+function matchsticks(n){return `<div class="matches">${Array.from({length:n},()=>'<span class="match"></span>').join("")||'<span class="muted">Mão vazia</span>'}</div>`}
+function renderPick(){if(turn>=players.length){phase="guess";turn=0;render();return}let p=players[turn];selected=Math.min(1,p.sticks);let max=p.sticks;
+$("playArea").innerHTML=`<div class="hand-wrap"><svg class="hand" viewBox="0 0 160 120" aria-label="Mão fechada"><path d="M27 66 Q18 55 28 44 Q37 35 47 45 L53 51 L53 25 Q53 13 64 13 Q75 13 75 25 L75 43 L79 20 Q82 9 93 12 Q103 15 100 27 L96 47 L104 30 Q110 20 120 26 Q130 32 123 44 L114 64 Q137 57 143 71 Q148 85 135 99 Q122 113 93 111 L55 109 Q34 105 27 88Z" fill="#e7b78f" stroke="#9b684d" stroke-width="4"/></svg><h2>Vez de ${esc(p.name)}</h2><p class="muted">Escolha quantos palitos vai esconder na mão.</p></div><div class="choices">${Array.from({length:3},(_,i)=>i+1).map(n=>`<button class="choice ${n===selected?'selected':''}" data-n="${n}" ${n>max?'disabled':''}>${matchsticks(n)}<b>${n} palito${n>1?'s':''}</b></button>`).join("")}</div><div class="actionrow"><button class="primary" id="confirmPick">Confirmar escolha</button></div><p class="notice small">Passe o aparelho para ${esc(players[(turn+1)%players.length].name)} sem mostrar a escolha. Na versão online, cada escolha será privada no celular de cada jogador.</p>`;
+document.querySelectorAll(".choice").forEach(b=>b.onclick=()=>{selected=+b.dataset.n;document.querySelectorAll(".choice").forEach(x=>x.classList.toggle("selected",x===b))});
+$("confirmPick").onclick=()=>{p.pick=selected;picks.push(selected);turn++;render()};
+}
+function renderGuess(){if(turn>=players.length){reveal();return}let p=players[turn],max=players.reduce((s,x)=>s+x.sticks,0),used=guesses.map(g=>g.value),possible=Array.from({length:max+1},(_,i)=>i).filter(n=>!used.includes(n));
+$("playArea").innerHTML=`<div class="hand-wrap"><h2>Palpite de ${esc(p.name)}</h2><p class="muted">Qual será a soma de todos os palitos?</p><p class="result">Total possível: 0 a ${max}</p></div><label for="guess">Seu palpite</label><select id="guess">${possible.map(n=>`<option value="${n}">${n}</option>`).join("")}</select><div class="actionrow"><button class="primary" id="confirmGuess" ${possible.length===0?'disabled':''}>Confirmar palpite</button></div><p class="notice small">Não pode repetir o palpite de outro jogador nesta rodada. Palpites já usados: ${used.join(", ")||"nenhum"}.</p>`;
+$("confirmGuess").onclick=()=>{guesses.push({player:turn,value:+$("guess").value});turn++;render()};
+}
+function reveal(){phase="result";let total=picks.reduce((a,b)=>a+b,0),hit=guesses.find(g=>g.value===total),out=`<h2>Resultado da rodada ${round}</h2><p class="result">Total: ${total} palito(s)</p><div class="grid">${players.map((p,i)=>`<div class="player"><strong>${esc(p.name)}</strong>${matchsticks(picks[i])}<span class="muted small">Escolheu ${picks[i]}</span></div>`).join("")}</div>`;
+if(hit){let p=players[hit.player];p.sticks=Math.max(0,p.sticks-1);out+=`<p class="result">🎉 ${esc(p.name)} acertou e retirou um palito!</p>`}else out+="<p>Ninguém acertou. Ninguém retira palito nesta rodada.</p>";
+let champ=players.find(p=>p.sticks===0);if(champ)out+=`<h2 class="result">🏆 ${esc(champ.name)} venceu a partida!</h2><button class="primary" id="restart">Nova partida</button>`;else out+=`<button class="primary" id="next">Próxima rodada</button>`;
+$("playArea").innerHTML=out;$("roster").innerHTML=roster();$("phaseLabel").textContent="Resultado";$("feedback").innerHTML='<p class="muted small">As escolhas foram reveladas e a soma foi conferida automaticamente.</p>';if(champ)$("restart").onclick=()=>location.reload();else $("next").onclick=()=>{round++;beginRound()};
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+</script>
+</body>
+</html>
